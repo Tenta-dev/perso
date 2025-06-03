@@ -448,3 +448,96 @@ services:
       - token=${MEMBARR_TOKEN}
     volumes:
       - ${BASE_PATH}/membarr/config:/app/app/config
+
+  suggestarr:
+    image: ciuse99/suggestarr:latest
+    container_name: SuggestArr
+    restart: always
+    ports:
+      - 5000:5000
+    volumes:
+      - ./config_files:/app/config/config_files
+    environment:
+      # Optional: Only needed if something goes wrong and you need to inspect deeper
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      # Optional: Customize the port (defaults to 5000 if not set)
+      - SUGGESTARR_PORT=5000
+
+  autopulse:
+    image: ghcr.io/dan-online/autopulse
+    container_name: autopulse
+    restart: always
+    depends_on:
+      postgres:
+         condition: service_healthy
+    ports:
+      - 2875:2875
+    networks:
+      - db
+    volumes:
+      - ./config.yaml:/app/config.yaml
+    environment:
+      AUTOPULSE__APP__DATABASE_URL: postgres://autopulse:autopulse@postgres/autopulse
+      # PUID: 1000
+      # PGID: 1000
+      # TZ: Europe/London
+
+  # Optional self-hosted UI
+  # ui:
+  #   image: danonline/autopulse:ui
+  #   container_name: autopulse-ui
+  #   restart: always
+  #   ports:
+  #     - 2880:2880
+  #   environment:
+  #     # SECRET: your_secret_here # Optional to prevent being logged out when the container restarts
+  #     # ORIGIN: http://localhost:2880 # Possibly required if you're accessing via ip, see: https://github.com/dan-online/autopulse/issues/85#issuecomment-2454446338
+  #   # networks: # If you want to use an internal autopulse network, ex. http://autopulse:2875
+  #   #   - db
+
+  postgres:
+    image: postgres:alpine
+    container_name: autopulse-postgres
+    restart: always
+    networks:
+      - db
+    environment:
+      POSTGRES_USER: autopulse
+      POSTGRES_PASSWORD: autopulse
+      POSTGRES_DB: autopulse
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - ./db:/var/lib/postgresql/data
+  
+networks:
+  db:
+    driver: bridge
+
+  maintainerr:
+    image: ghcr.io/jorenn92/maintainerr:latest # or jorenn92/maintainerr:latest
+    container_name: maintainerr
+    user: 1000:1000
+    volumes:
+      - type: bind
+        source: ./data
+        target: /opt/data
+    environment:
+      - TZ=Europe/Brussels
+#      - BASE_PATH=/maintainerr # uncomment if you're serving maintainerr from a subdirectory
+#      - UI_HOSTNAME=:: # uncomment if you want to listen on IPv6 instead (default 0.0.0.0)
+#      - UI_PORT=6247 # uncomment to change the UI port (default 6246). Useful if you're on a network where the port is already in use
+#      - API_PORT=3002 # uncomment to change the API port (default 3001). Useful if you're on a network where the port is already in use
+    ports:
+      - 6246:6246
+    restart: unless-stopped
+      
+  fladder:
+    image: ghcr.io/donutware/fladder:latest
+    ports:
+      - 80:80
+    environment:
+      - BASE_URL=https://server-url #OPTIONAL: Locks the Fladder front-end to a certain jellyfin server
