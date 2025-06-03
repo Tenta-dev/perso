@@ -434,3 +434,17 @@ services:
       - ${BASE_PATH}/recyclarr/config:/config
     environment:
       - TZ=${TZ}
+
+  #Membarr - to invite users via discord
+  #
+  #Can be configured so that when a plex member invites an outside user to a discord channel they are auto invited to plex
+  #
+  #Feel free to remove this container if you want to manually invite everyone yourself
+  membarr:
+    container_name: membarr
+    image: yoruio/membarr:latest
+    restart: unless-stopped
+    environment:
+      - token=${MEMBARR_TOKEN}
+    volumes:
+      - ${BASE_PATH}/membarr/config:/app/app/config
