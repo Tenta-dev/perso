@@ -296,6 +296,8 @@ services:
     restart: unless-stopped
     devices:
       - /dev/net/tun:/dev/net/tun
+    volumes:
+      - {BASE_PATH}/gluetun:/gluetun
     environment:
       - VPN_SERVICE_PROVIDER=mullvad
       - VPN_TYPE=wireguard
@@ -672,3 +674,17 @@ networks:
       - ./custom/cfs:/app/cfs # Optional if custom formats locally provided
       - ./custom/templates:/app/templates # Optional if custom templates
     # restart: "no" # optional make sure this is set to no or removed. Default is no
+
+  gluetun-qbittorrent-port-manager:
+    image: snoringdragon/gluetun-qbittorrent-port-manager:latest
+    restart: unless-stopped
+    volumes:
+      - {BASE_PATH}/gluetun:/tmp/gluetun #Set "yourfolder" to the same directory you used for Gluetun
+    network_mode: "service:gluetun"
+    environment:
+    QBITTORRENT_SERVER: localhost # IP Address of qbittorrent
+    QBITTORRENT_PORT: 8080
+    QBITTORRENT_USER: admin # username
+    QBITTORRENT_PASS: adminadmin # password
+    PORT_FORWARDED: /tmp/gluetun/forwarded_port
+    HTTP_S: http # Select 'http' or 'https' depending on if you use certificates.
