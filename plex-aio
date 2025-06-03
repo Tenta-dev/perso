@@ -297,4 +297,18 @@ services:
       - ${BASE_PATH}/recyclarr/config:/config
     environment:
       - TZ=${TZ}
+
+# Permet d'avoir des suggestions de films / séries / animes par rapport à ceux vu récemment
+  suggestarr:
+    image: ciuse99/suggestarr:latest
+    container_name: SuggestArr
+    restart: always
+    ports:
+      - "${SUGGESTARR_PORT:-5000}:${SUGGESTARR_PORT:-5000}"
+    volumes:
+      - ./config_files:/app/config/config_files
+    environment:
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      # Optional: Customize the port (defaults to 5000 if not set)
+      - SUGGESTARR_PORT=${SUGGESTARR_PORT:-5000}
  
