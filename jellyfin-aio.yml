@@ -3,7 +3,11 @@ version: "3.0"
 networks:
   proxy:
     external: true
+  jellyfin_default:
+    external: true
   starr:
+    external: true
+  jellystat:
     external: true
   gluetun_network:
     external: true
@@ -72,57 +76,6 @@ services:
       starr:
       gluetun_network:
         ipv4_address: ${SONARR_IPV4}
-    restart: unless-stopped
-  
-  #Readarr - Used to download books
-  readarr:
-    image: lscr.io/linuxserver/readarr:develop
-    container_name: readarr
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
-    volumes:
-      - ${BASE_PATH}/readarr/config:/config
-      - ${MEDIA_SHARE}:/data
-    ports:
-      - 8787:8787
-    networks:
-      - proxy
-      - starr
-    restart: unless-stopped
-    
-  #Lidarr - Used to download music 
-  lidarr:
-    image: lscr.io/linuxserver/lidarr:latest
-    container_name: lidarr
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
-    volumes:
-      - ${BASE_PATH}/lidarr/config:/config
-      - ${MEDIA_SHARE}:/data
-    ports:
-      - 8686:8686
-    networks:
-      - proxy
-      - starr
-    restart: unless-stopped
-
-  #Kapowarr - Used to download comics
-  kapowarr:
-    image: 'mrcas/kapowarr:latest'
-    container_name: kapowarr
-    network_mode: "service:gluetun"
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
-    volumes:
-      - ${BASE_PATH}/kapowarr/config:/app/db
-      - ${MEDIA_SHARE}/temp_downloads:/app/temp_downloads
-      - ${MEDIA_SHARE}:/data
     restart: unless-stopped
     
   #Prowlarr - manages your Sonarr, Radarr and download client
@@ -234,24 +187,6 @@ services:
     devices:
      - /dev/dri:/dev/dri #Required for HW transcoding /share QuickSync
     networks:
-      - proxy
-      
-  #Bazarr - for subtitles. Try to use SRT format if you can rather than PGS due to performance issues
-  bazarr:
-    container_name: bazarr
-    image: lscr.io/linuxserver/bazarr:latest
-    restart: unless-stopped
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
-    volumes:
-      - ${BASE_PATH}/bazarr/config:/config
-      - ${MEDIA_SHARE}:/data
-    ports:
-      - 6767:6767
-    networks:
-      - starr
       - proxy
       
   #Cross Seed - used to take torrents from one tracker and seed them on another without leeching first. Increases ratio
@@ -376,7 +311,6 @@ services:
       - 2468:2468/tcp # cross-seed
       - 8080:8080/tcp # qBit
       - 8694:8694/tcp # qBit
-      - 5656:5656/tcp # kapowarr
       - 8191:8191/tcp # flaresolverr
       - 9696:9696/tcp # prowlarr
       - 7474:7474 # autobrr
