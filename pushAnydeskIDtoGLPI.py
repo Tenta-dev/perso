@@ -42,6 +42,7 @@ def installer_requests():
     except subprocess.CalledProcessError:
         print("Échec de l'installation de 'requests'.")
         log("Échec de l'installation de 'requests'.")
+    import requests
 
 
 log("### Début du script ###")
