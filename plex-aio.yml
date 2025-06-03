@@ -9,6 +9,11 @@
 # qbittorrent: 8080
 # tautulli: 8181
 # cross-seed: 2468
+# wizarr: 5690
+# dozzle: 9999
+# suggestarr: 5000
+# autopulse: 2875
+# autopulse-ui: 2880
 
 ---
 version: "3.0"
