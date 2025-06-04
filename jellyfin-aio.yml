@@ -9,6 +9,8 @@ networks:
     external: true
   jellystat:
     external: true
+  autopulse:
+    external: true
   gluetun_network:
     external: true
       
@@ -59,15 +61,15 @@ services:
     restart: unless-stopped
     
   #Sonarr - used to find shows automatically
-  sonarr:
+  tv_sonarr:
     image: lscr.io/linuxserver/sonarr:latest
-    container_name: sonarr
+    container_name: tv_sonarr
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TZ}
     volumes:
-      - ${BASE_PATH}/sonarr/config:/config
+      - ${BASE_PATH}/tv_sonarr/config:/config
       - ${MEDIA_SHARE}:/data #Access to the entire /media
     ports:
       - 8989:8989
@@ -75,7 +77,27 @@ services:
       proxy:
       starr:
       gluetun_network:
-        ipv4_address: ${SONARR_IPV4}
+        ipv4_address: ${TV_SONARR_IPV4}
+    restart: unless-stopped
+
+  #Sonarr - used to find shows automatically
+  anime_sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: anime_sonarr
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${BASE_PATH}/anime_sonarr/config:/config
+      - ${MEDIA_SHARE}:/data #Access to the entire /media
+    ports:
+      - 8990:8989
+    networks:
+      proxy:
+      starr:
+      gluetun_network:
+        ipv4_address: ${ANIME_SONARR_IPV4}
     restart: unless-stopped
     
   #Prowlarr - manages your Sonarr, Radarr and download client
@@ -133,7 +155,7 @@ services:
       - LOG_HTML=false
       - CAPTCHA_SOLVER=none
       - TZ=${TZ}
-      - LANG=en_GB
+      - LANG=fr_FR
       - DRIVER=nodriver
     restart: unless-stopped
       
@@ -205,7 +227,7 @@ services:
       - ${BASE_PATH}/cross-seed/config:/config #To configure you have to manually nano the config file
       - ${BASE_PATH}/qbittorent/config/qBittorrent/BT_backup:/torrents:ro # your torrent clients .torrent cache, can and should be mounted read-only (e.g. qbit: `BT_Backup` | deluge: `state` | transmission: `transmission/torrents` | rtorrent: session dir from `.rtorrent.rc`)
       - ${MEDIA_SHARE}/torrents/cross-seed:/data/cross-seeds
-      # - ${MEDIA_SHARE}/cross-seed/current-cross-seeds:/data/cross-seeds # A place to temp save current cross seed .torrent files
+      - ${MEDIA_SHARE}/cross-seed/current-cross-seeds:/data/cross-seeds # A place to temp save current cross seed .torrent files
       #- ${MEDIA_SHARE}/downloads:/data # OPTIONAL!!! this is dataDir path (for data-based matching) - will need to replicate your torrent client's container path (like Arr's do)
     command: daemon # this enables the search mode, change to daemon to specifically run the daemon
     
@@ -257,13 +279,13 @@ services:
       - TZ=${TZ}
       #- UN_DEBUG=true
       # Sonarr Config
-      - UN_SONARR_0_URL=http://sonarr:8989
+      - UN_SONARR_0_URL=${SONARR_URL}
       - UN_SONARR_0_API_KEY=${SONARR_KEY}
       #- UN_SONARR_0_PATHS_0=/${BASE_PATH}/downloads/shows
       - UN_SONARR_0_TIMEOUT=10s
       #- UN_SONARR_0_PATHS_0=/${BASE_PATH}/downloads/shows
       # Radarr Config
-      - UN_RADARR_0_URL=http://radarr:7878
+      - UN_RADARR_0_URL=${RADARR_URL}
       - UN_RADARR_0_API_KEY=${RADARR_KEY}
       #- UN_RADARR_0_PATHS_0=/${BASE_PATH}/downloads/movies
       - UN_RADARR_0_TIMEOUT=10s
@@ -299,16 +321,16 @@ services:
     volumes:
       - {BASE_PATH}/gluetun:/gluetun
     environment:
-      - VPN_SERVICE_PROVIDER=mullvad
+      - VPN_SERVICE_PROVIDER=custom
       - VPN_TYPE=wireguard
-      - WIREGUARD_PRIVATE_KEY=${WIREGUARD_KEY}
+      - VPN_ENDPOINT_IP=${VPN_P2P_ENDPOINT_IP}
+      - VPN_ENDPOINT_PORT=${VPN_P2P_ENDPOINT_PORT}
+      - WIREGUARD_PUBLIC_KEY=${WIREGUARD_PUB_KEY}
+      - WIREGUARD_PRIVATE_KEY=${WIREGUARD_PRIV_KEY}
       - WIREGUARD_ADDRESSES=${WIREGUARD_ADD}
       - SERVER_CITIES=${VPN_SERVER_CITIES}
-      - UPDATER_PERIOD=24h
-      - UPDATER_VPN_SERVICE_PROVIDERS=mullvad
-      - WIREGUARD_MTU=${WIREGUARD_MTU:-1200}
-      - PUBLICIP_API=${PUBLICIP_API}
-      - PUBLICIP_API_TOKEN=${PUBLICIP_TOKEN}
+      - VPN_PORT_FORWARDING= on
+      - VPN_PORT_FORWARDING_PROVIDER=${VPN_P2P_PORTFORWARDING_PROVIDER}
     ports:
       - 2468:2468/tcp # cross-seed
       - 8080:8080/tcp # qBit
@@ -320,8 +342,6 @@ services:
       - starr
       - proxy
       - gluetun_network
-    # IF VPN CANNOT CONNECT, USE BELOW COMMAND TO UPDATE SERVERS.
-    # command: update -enduser -providers mullvad
 
   homarr:
     container_name: homarr
@@ -342,53 +362,47 @@ services:
     container_name: decluttarr
     restart: unless-stopped
     environment:
-     TZ: ${TZ}
-     PUID: ${PUID}
-     PGID: ${PGID}
-     ## General
-     # TEST_RUN=True
-     # SSL_VERIFICATION=False
-     LOG_LEVEL: INFO
-     ## Features 
-     REMOVE_TIMER: 10
-     REMOVE_FAILED: True
-     REMOVE_FAILED_IMPORTS: True
-     REMOVE_METADATA_MISSING: True
-     REMOVE_MISSING_FILES: True
-     REMOVE_ORPHANS: True
-     REMOVE_SLOW: True
-     REMOVE_STALLED: True
-     REMOVE_UNMONITORED: True
-     RUN_PERIODIC_RESCANS: '
+      TZ: ${TZ}
+      PUID: ${PUID}
+      PGID: ${PGID}
+      ## General
+      # TEST_RUN=True
+      SSL_VERIFICATION: False
+      LOG_LEVEL: INFO
+      ## Features 
+      REMOVE_TIMER: 10
+      REMOVE_FAILED: True
+      REMOVE_FAILED_IMPORTS: True
+      REMOVE_METADATA_MISSING: True
+      REMOVE_MISSING_FILES: True
+      REMOVE_ORPHANS: True
+      REMOVE_SLOW: True
+      REMOVE_STALLED: True
+      REMOVE_UNMONITORED: True
+      RUN_PERIODIC_RESCANS: '
         {
           "SONARR": {"MISSING": true, "CUTOFF_UNMET": true, "MAX_CONCURRENT_SCANS": 3, "MIN_DAYS_BEFORE_RESCAN": 7},
           "RADARR": {"MISSING": true, "CUTOFF_UNMET": true, "MAX_CONCURRENT_SCANS": 3, "MIN_DAYS_BEFORE_RESCAN": 7}
         }'
-     # Feature Settings
-     PERMITTED_ATTEMPTS: 3
-     NO_STALLED_REMOVAL_QBIT_TAG: Don't Kill
-     MIN_DOWNLOAD_SPEED: 100     
-     FAILED_IMPORT_MESSAGE_PATTERNS: '
+      # Feature Settings
+      PERMITTED_ATTEMPTS: 3
+      NO_STALLED_REMOVAL_QBIT_TAG: Don't Kill
+      MIN_DOWNLOAD_SPEED: 100     
+      FAILED_IMPORT_MESSAGE_PATTERNS: '
         [
           "Not a Custom Format upgrade for existing", 
           "Not an upgrade for existing"
         ]'
-     ## Radarr
-     RADARR_URL: http://radarr:7878
-     RADARR_KEY: $RADARR_KEY
-     ## Sonarr
-     SONARR_URL: http://sonarr:8989
-     SONARR_KEY: $SONARR_KEY
-     ## Lidarr
-     LIDARR_URL: http://lidarr:8686
-     LIDARR_KEY: $LIDARR_KEY
-     ## Readarr
-     READARR_URL: http://readarr:8787
-     READARR_KEY: $READARR_KEY
-     ## qBitorrent
-     QBITTORRENT_URL: http://gluetun:8080
-     QBITTORRENT_USERNAME: $QBIT_USER
-     QBITTORRENT_PASSWORD: $QBIT_PASS
+      ## Radarr
+      RADARR_URL: $RADARR_URL
+      RADARR_KEY: $RADARR_KEY
+      ## Sonarr
+      SONARR_URL: $SONARR_URL
+      SONARR_KEY: $SONARR_KEY
+      ## qBitorrent
+      QBITTORRENT_URL: $QBIT_URL
+      QBITTORRENT_USERNAME: $QBIT_USER
+      QBITTORRENT_PASSWORD: $QBIT_PASS
     networks:
       - starr
       - proxy
@@ -436,6 +450,9 @@ services:
       - ${BASE_PATH}/recyclarr/config:/config
     environment:
       - TZ=${TZ}
+    networks:
+      - starr
+      - proxy
 
   #Membarr - to invite users via discord
   #
@@ -450,20 +467,24 @@ services:
       - token=${MEMBARR_TOKEN}
     volumes:
       - ${BASE_PATH}/membarr/config:/app/app/config
+    networks:
+      - proxy
 
   suggestarr:
     image: ciuse99/suggestarr:latest
-    container_name: SuggestArr
+    container_name: suggestarr
     restart: always
     ports:
       - 5000:5000
     volumes:
-      - ./config_files:/app/config/config_files
+      - ${BASE_PATH}/suggestarr/config_files:/app/config/config_files
     environment:
       # Optional: Only needed if something goes wrong and you need to inspect deeper
       - LOG_LEVEL=${LOG_LEVEL:-info}
       # Optional: Customize the port (defaults to 5000 if not set)
       - SUGGESTARR_PORT=5000
+    networks:
+      - proxy
 
   autopulse:
     image: ghcr.io/dan-online/autopulse
@@ -475,37 +496,38 @@ services:
     ports:
       - 2875:2875
     networks:
-      - db
+      - autopulse
+      - proxy
     volumes:
-      - ./config.yaml:/app/config.yaml
+      - ${BASE_PATH}/autopulse/config.yaml:/app/config.yaml
     environment:
-      AUTOPULSE__APP__DATABASE_URL: postgres://autopulse:autopulse@postgres/autopulse
-      # PUID: 1000
-      # PGID: 1000
-      # TZ: Europe/London
+      AUTOPULSE__APP__DATABASE_URL: postgres://$AUTOPULSE_DB_USER:$AUTOPULSE_DB_PWD@postgres/autopulse
+      PUID: $PUID
+      PGID: $PGID
+      TZ: $TZ
 
-  # Optional self-hosted UI
-  # ui:
-  #   image: danonline/autopulse:ui
-  #   container_name: autopulse-ui
-  #   restart: always
-  #   ports:
-  #     - 2880:2880
-  #   environment:
-  #     # SECRET: your_secret_here # Optional to prevent being logged out when the container restarts
-  #     # ORIGIN: http://localhost:2880 # Possibly required if you're accessing via ip, see: https://github.com/dan-online/autopulse/issues/85#issuecomment-2454446338
-  #   # networks: # If you want to use an internal autopulse network, ex. http://autopulse:2875
-  #   #   - db
+  autopulse-ui:
+    image: danonline/autopulse:ui
+    container_name: autopulse-ui
+    restart: always
+    ports:
+      - 2880:2880
+    environment:
+    ORIGIN: $AUTOPULSE_URL # Possibly required if you're accessing via ip, see: https://github.com/dan-online/autopulse/issues/85#issuecomment-2454446338
+    networks:
+      - autopulse
+      - proxy
 
-  postgres:
+  autopulse-db:
     image: postgres:alpine
-    container_name: autopulse-postgres
+    container_name: autopulse-db
     restart: always
     networks:
-      - db
+      - autopulse
+      - proxy
     environment:
-      POSTGRES_USER: autopulse
-      POSTGRES_PASSWORD: autopulse
+      POSTGRES_USER: $AUTOPULSE_DB_USER
+      POSTGRES_PASSWORD: $AUTOPULSE_DB_PWD
       POSTGRES_DB: autopulse
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
@@ -513,62 +535,58 @@ services:
       timeout: 5s
       retries: 5
     volumes:
-      - ./db:/var/lib/postgresql/data
-  
-networks:
-  db:
-    driver: bridge
+      - ${BASE_PATH}/autopulse/db:/var/lib/postgresql/data
 
   maintainerr:
     image: ghcr.io/jorenn92/maintainerr:latest # or jorenn92/maintainerr:latest
     container_name: maintainerr
-    user: 1000:1000
+    user: $PUID:$PGID
     volumes:
-      - type: bind
-        source: ./data
-        target: /opt/data
+      - ${BASE_PATH}/maintainerr/data:/opt/data
     environment:
-      - TZ=Europe/Brussels
-#      - BASE_PATH=/maintainerr # uncomment if you're serving maintainerr from a subdirectory
-#      - UI_HOSTNAME=:: # uncomment if you want to listen on IPv6 instead (default 0.0.0.0)
-#      - UI_PORT=6247 # uncomment to change the UI port (default 6246). Useful if you're on a network where the port is already in use
-#      - API_PORT=3002 # uncomment to change the API port (default 3001). Useful if you're on a network where the port is already in use
+      - TZ=${TZ}
     ports:
       - 6246:6246
     restart: unless-stopped
+    networks:
+      - proxy
+      - starr
       
   fladder:
     image: ghcr.io/donutware/fladder:latest
     ports:
       - 80:80
     environment:
-      - BASE_URL=https://server-url #OPTIONAL: Locks the Fladder front-end to a certain jellyfin server
+      - BASE_URL=${JELLYFIN_URL} #OPTIONAL: Locks the Fladder front-end to a certain jellyfin server
+    networks:
+      - proxy
 
   huntarr:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/plexguide/huntarr:latest
     container_name: huntarr
+    restart: always
     ports:
-      - "9705:9705"
-    volumes: 
-      - huntarr-config:/config
-      - /etc/localtime:/etc/localtime:ro
-      - /etc/timezone:/etc/timezone:ro
-    restart: unless-stopped
+      - 9705:9705
+    volumes:
+      - ${BASE_PATH}/huntarr/config:/config
+    environment:
+      - TZ=${TZ}
+    networks:
+      - proxy
+      - starr
     
   cleanuperr:
     image: ghcr.io/flmorg/cleanuperr:latest
     restart: unless-stopped
     volumes:
       # if you want persistent logs
-      - ./cleanuperr/logs:/var/logs
+      - ${BASE_PATH}/cleanuperr/logs:/var/logs
       # if you want to ignore certain downloads from being processed
-      - ./cleanuperr/ignored.txt:/ignored.txt
+      - ${BASE_PATH}/cleanuperr/ignored.txt:/ignored.txt
       # if you're using cross-seed and the hardlinks functionality
-      - ./downloads:/downloads
+      - ${MEDIA_SHARE}:/data
     environment:
-      - TZ=America/New_York
+      - TZ=${TZ}
       - DRY_RUN=false
       - HTTP_MAX_RETRIES=0
       - HTTP_TIMEOUT=100
@@ -619,17 +637,17 @@ networks:
       - DOWNLOADCLEANER__DELETE_PRIVATE=false
       
       - DOWNLOADCLEANER__CATEGORIES__0__NAME=tv-sonarr
-      - DOWNLOADCLEANER__CATEGORIES__0__MAX_RATIO=1
-      - DOWNLOADCLEANER__CATEGORIES__0__MIN_SEED_TIME=0
-      - DOWNLOADCLEANER__CATEGORIES__0__MAX_SEED_TIME=240
+      - DOWNLOADCLEANER__CATEGORIES__0__MAX_RATIO=${CLEANUPERR_MAX_RATIO}
+      - DOWNLOADCLEANER__CATEGORIES__0__MIN_SEED_TIME=${CLEANUPERR_MIN_SEED}
+      - DOWNLOADCLEANER__CATEGORIES__0__MAX_SEED_TIME=${CLEANUPERR_MAX_SEED}
       - DOWNLOADCLEANER__CATEGORIES__1__NAME=radarr
-      - DOWNLOADCLEANER__CATEGORIES__1__MAX_RATIO=1
-      - DOWNLOADCLEANER__CATEGORIES__1__MIN_SEED_TIME=0
-      - DOWNLOADCLEANER__CATEGORIES__1__MAX_SEED_TIME=240
+      - DOWNLOADCLEANER__CATEGORIES__1__MAX_RATIO=${CLEANUPERR_MAX_RATIO}
+      - DOWNLOADCLEANER__CATEGORIES__1__MIN_SEED_TIME=${CLEANUPERR_MIN_SEED}
+      - DOWNLOADCLEANER__CATEGORIES__1__MAX_SEED_TIME=${CLEANUPERR_MAX_SEED}
       - DOWNLOADCLEANER__CATEGORIES__2__NAME=cleanuperr-unlinked
-      - DOWNLOADCLEANER__CATEGORIES__2__MAX_RATIO=1
-      - DOWNLOADCLEANER__CATEGORIES__2__MIN_SEED_TIME=0
-      - DOWNLOADCLEANER__CATEGORIES__2__MAX_SEED_TIME=240
+      - DOWNLOADCLEANER__CATEGORIES__2__MAX_RATIO=${CLEANUPERR_MAX_RATIO}
+      - DOWNLOADCLEANER__CATEGORIES__2__MIN_SEED_TIME=${CLEANUPERR_MIN_SEED}
+      - DOWNLOADCLEANER__CATEGORIES__2__MAX_SEED_TIME=${CLEANUPERR_MAX_SEED}
       
       - DOWNLOADCLEANER__UNLINKED_TARGET_CATEGORY=cleanuperr-unlinked
       - DOWNLOADCLEANER__UNLINKED_USE_TAG=false
@@ -638,10 +656,10 @@ networks:
       - DOWNLOADCLEANER__UNLINKED_CATEGORIES__1=radarr
                
       - DOWNLOAD_CLIENT=qBittorrent
-      - QBITTORRENT__URL=http://localhost:8080
+      - QBITTORRENT__URL=${QBIT_URL}
       - QBITTORRENT__URL_BASE=myCustomPath
-      - QBITTORRENT__USERNAME=user
-      - QBITTORRENT__PASSWORD=pass
+      - QBITTORRENT__USERNAME=${QBIT_USER}
+      - QBITTORRENT__PASSWORD=${QBIT_PASS}
       
       - SONARR__ENABLED=true
       - SONARR__IMPORT_FAILED_MAX_STRIKES=-1
