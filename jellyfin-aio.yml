@@ -15,10 +15,7 @@ networks:
     external: true
       
 services:
-  # REVERSE PROXY IS IN OTHER DOCKER COMPOSE STACK
-
   #Jellyfin - used to display the media
-  #This can also be replaced by Emby/Plex
   jellyfin:
     image: ghcr.io/linuxserver/jellyfin:latest
     container_name: jellyfin
@@ -80,7 +77,7 @@ services:
         ipv4_address: ${TV_SONARR_IPV4}
     restart: unless-stopped
 
-  #Sonarr - used to find shows automatically
+  #Sonarr - used to find anime automatically
   anime_sonarr:
     image: lscr.io/linuxserver/sonarr:latest
     container_name: anime_sonarr
@@ -146,7 +143,6 @@ services:
     
   #Flaresolerr - Used as a proxy server to bypass Cloudflare and DDoS-GUARD protection.
   flaresolverr:
-    # DockerHub mirror flaresolverr/flaresolverr:latest
     image: ghcr.io/flaresolverr/flaresolverr:latest
     container_name: flaresolverr
     network_mode: "service:gluetun"
@@ -160,8 +156,6 @@ services:
     restart: unless-stopped
       
   #Qbittorent - torrenting software
-  #
-  #You can also use RuTorrent, Transmisson or Deluge
   qbittorrent:
     image: lscr.io/linuxserver/qbittorrent:latest
     container_name: qbittorrent
@@ -179,8 +173,6 @@ services:
     restart: unless-stopped
 
   #Tdarr - to transcode videos from one format to another like x265 or H.265
-  #
-  #This container requires a decent amount of horse power to run but will save space in the long run
   tdarr:
     container_name: tdarr
     image: ghcr.io/haveagitgat/tdarr:latest
@@ -228,7 +220,6 @@ services:
       - ${BASE_PATH}/qbittorent/config/qBittorrent/BT_backup:/torrents:ro # your torrent clients .torrent cache, can and should be mounted read-only (e.g. qbit: `BT_Backup` | deluge: `state` | transmission: `transmission/torrents` | rtorrent: session dir from `.rtorrent.rc`)
       - ${MEDIA_SHARE}/torrents/cross-seed:/data/cross-seeds
       - ${MEDIA_SHARE}/cross-seed/current-cross-seeds:/data/cross-seeds # A place to temp save current cross seed .torrent files
-      #- ${MEDIA_SHARE}/downloads:/data # OPTIONAL!!! this is dataDir path (for data-based matching) - will need to replicate your torrent client's container path (like Arr's do)
     command: daemon # this enables the search mode, change to daemon to specifically run the daemon
     
   #Wizarr - Allows you to create a share link that you can send to users to invite them to your media server
@@ -263,14 +254,9 @@ services:
     image: ghcr.io/hotio/unpackerr:latest
     container_name: unpackerr
     volumes:
-      # You need at least this one volume mapped so Unpackerr can find your files to extract.
-      # Make sure this matches your Starr apps; the folder mount (/downloads or /data) should be identical.
       - ${MEDIA_SHARE}:/data
       - ${BASE_PATH}/unpackerr/config:/config
     restart: unless-stopped
-    # What you see below are defaults for this compose. You only need to modify things specific to your environment.
-    # Remove apps and feature configs you do not use or need. 
-    # ie. Remove all lines that begin with UN_CMDHOOK, UN_WEBHOOK, UN_FOLDER, UN_WEBSERVER, and other apps you do not use.
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
@@ -278,18 +264,21 @@ services:
       - UMASK=002
       - TZ=${TZ}
       #- UN_DEBUG=true
-      # Sonarr Config
-      - UN_SONARR_0_URL=${SONARR_URL}
-      - UN_SONARR_0_API_KEY=${SONARR_KEY}
-      #- UN_SONARR_0_PATHS_0=/${BASE_PATH}/downloads/shows
+      # tv-Sonarr Config
+      - UN_SONARR_0_URL=${TV_SONARR_URL}
+      - UN_SONARR_0_API_KEY=${TV_SONARR_KEY}
+      - UN_SONARR_0_PATHS_0=/${BASE_PATH}/downloads/shows
       - UN_SONARR_0_TIMEOUT=10s
-      #- UN_SONARR_0_PATHS_0=/${BASE_PATH}/downloads/shows
+      # anime-Sonarr Config
+      - UN_SONARR_1_URL=${ANIME_SONARR_URL}
+      - UN_SONARR_1_API_KEY=${ANIME_SONARR_KEY}
+      - UN_SONARR_1_PATHS_0=/${BASE_PATH}/downloads/anime
+      - UN_SONARR_1_TIMEOUT=10s
       # Radarr Config
       - UN_RADARR_0_URL=${RADARR_URL}
       - UN_RADARR_0_API_KEY=${RADARR_KEY}
-      #- UN_RADARR_0_PATHS_0=/${BASE_PATH}/downloads/movies
+      - UN_RADARR_0_PATHS_0=/${BASE_PATH}/downloads/movies
       - UN_RADARR_0_TIMEOUT=10s
-      #- UN_RADARR_0_PATHS_0=/${BASE_PATH}/downloads/movies
     networks:
       - starr
 
@@ -358,7 +347,7 @@ services:
       - proxy
 
   decluttarr:
-    image: ghcr.io/manimatter/decluttarr:latest
+    image: ghcr.io/manimatter/decluttarr:v2
     container_name: decluttarr
     restart: unless-stopped
     environment:
@@ -394,15 +383,21 @@ services:
           "Not an upgrade for existing"
         ]'
       ## Radarr
-      RADARR_URL: $RADARR_URL
-      RADARR_KEY: $RADARR_KEY
+      RADARR: >
+        - base_url: "$RADARR_URL"
+          api_key: "$RADARR_KEY"
       ## Sonarr
-      SONARR_URL: $SONARR_URL
-      SONARR_KEY: $SONARR_KEY
+      SONARR: >
+        - base_url: "$TV_SONARR_URL"
+          api_key: "$TV_SONARR_KEY"
+        - base_url: "$ANIME_SONARR_URL"
+          api_key: "$ANIME_SONARR_KEY"
       ## qBitorrent
-      QBITTORRENT_URL: $QBIT_URL
-      QBITTORRENT_USERNAME: $QBIT_USER
-      QBITTORRENT_PASSWORD: $QBIT_PASS
+      QBITTORRENT: >
+        - base_url: "$QBIT_URL"
+          username: "$QBIT_USER"
+          password: "$QBIT_PASS"
+          name: "qBittorrent"
     networks:
       - starr
       - proxy
@@ -644,16 +639,21 @@ services:
       - DOWNLOADCLEANER__CATEGORIES__1__MAX_RATIO=${CLEANUPERR_MAX_RATIO}
       - DOWNLOADCLEANER__CATEGORIES__1__MIN_SEED_TIME=${CLEANUPERR_MIN_SEED}
       - DOWNLOADCLEANER__CATEGORIES__1__MAX_SEED_TIME=${CLEANUPERR_MAX_SEED}
-      - DOWNLOADCLEANER__CATEGORIES__2__NAME=cleanuperr-unlinked
+      - DOWNLOADCLEANER__CATEGORIES__2__NAME=anime-sonarr
       - DOWNLOADCLEANER__CATEGORIES__2__MAX_RATIO=${CLEANUPERR_MAX_RATIO}
       - DOWNLOADCLEANER__CATEGORIES__2__MIN_SEED_TIME=${CLEANUPERR_MIN_SEED}
       - DOWNLOADCLEANER__CATEGORIES__2__MAX_SEED_TIME=${CLEANUPERR_MAX_SEED}
+      - DOWNLOADCLEANER__CATEGORIES__3__NAME=cleanuperr-unlinked
+      - DOWNLOADCLEANER__CATEGORIES__3__MAX_RATIO=${CLEANUPERR_MAX_RATIO}
+      - DOWNLOADCLEANER__CATEGORIES__3__MIN_SEED_TIME=${CLEANUPERR_MIN_SEED}
+      - DOWNLOADCLEANER__CATEGORIES__3__MAX_SEED_TIME=${CLEANUPERR_MAX_SEED}
       
       - DOWNLOADCLEANER__UNLINKED_TARGET_CATEGORY=cleanuperr-unlinked
       - DOWNLOADCLEANER__UNLINKED_USE_TAG=false
-      - DOWNLOADCLEANER__UNLINKED_IGNORED_ROOT_DIR=/downloads
+      - DOWNLOADCLEANER__UNLINKED_IGNORED_ROOT_DIR=/data/downloads
       - DOWNLOADCLEANER__UNLINKED_CATEGORIES__0=tv-sonarr
       - DOWNLOADCLEANER__UNLINKED_CATEGORIES__1=radarr
+      - DOWNLOADCLEANER__UNLINKED_CATEGORIES__3=anime-sonarr
                
       - DOWNLOAD_CLIENT=qBittorrent
       - QBITTORRENT__URL=${QBIT_URL}
