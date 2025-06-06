@@ -675,3 +675,8 @@ services:
     QBITTORRENT_PASS: ${QBIT_PASS}
     PORT_FORWARDED: /tmp/gluetun/forwarded_port
     HTTP_S: http
+
+  watchtower:
+    image: containrrr/watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
