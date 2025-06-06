@@ -680,3 +680,6 @@ services:
     image: containrrr/watchtower
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - TZ = ${TZ}
+    command: --interval 30
