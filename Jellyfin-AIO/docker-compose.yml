@@ -1,0 +1,677 @@
+version: "3.0"
+
+networks:
+  proxy:
+    external: true
+  jellyfin_default:
+    external: true
+  starr:
+    external: true
+  jellystat:
+    external: true
+  autopulse:
+    external: true
+  gluetun_network:
+    external: true
+      
+services:
+  jellyfin:
+    image: ghcr.io/linuxserver/jellyfin:latest
+    container_name: jellyfin
+    environment:
+      - JELLYFIN_PublishedServerUrl=${JELLYFIN_URL}
+      - PUID=${PUID}
+      - PGID=${PGID}
+    ports:
+      - 8096:8096
+      - 8920:8920
+    devices:
+     - /dev/dri:/dev/dri
+    volumes:
+      - ${BASE_PATH}/jellyfin/config:/config
+      - ${MEDIA_SHARE}/media:/media
+      - ${BASE_PATH}/swag/config/keys/letsencrypt:/certificates
+    restart: unless-stopped
+    networks:
+      - proxy
+      - starr
+    
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${BASE_PATH}/radarr/config:/config
+      - ${MEDIA_SHARE}:/data 
+    ports:
+      - 7878:7878
+    networks:
+      proxy:
+      starr:
+      gluetun_network:
+        ipv4_address: ${RADARR_IPV4}
+    restart: unless-stopped
+    
+  tv_sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: tv_sonarr
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${BASE_PATH}/tv_sonarr/config:/config
+      - ${MEDIA_SHARE}:/data 
+    ports:
+      - 8989:8989
+    networks:
+      proxy:
+      starr:
+      gluetun_network:
+        ipv4_address: ${TV_SONARR_IPV4}
+    restart: unless-stopped
+
+  anime_sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: anime_sonarr
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${BASE_PATH}/anime_sonarr/config:/config
+      - ${MEDIA_SHARE}:/data
+    ports:
+      - 8990:8989
+    networks:
+      proxy:
+      starr:
+      gluetun_network:
+        ipv4_address: ${ANIME_SONARR_IPV4}
+    restart: unless-stopped
+    
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    network_mode: "service:gluetun"
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${BASE_PATH}/prowlarr/config:/config
+    restart: unless-stopped
+    
+  autobrr:
+    container_name: autobrr
+    image: ghcr.io/autobrr/autobrr:latest
+    restart: unless-stopped
+    network_mode: "service:gluetun"
+    environment:
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+    volumes:
+      - ${BASE_PATH}/autobrr/config:/config
+
+  jellyseerr:
+    image: fallenbagel/jellyseerr:latest
+    container_name: jellyseerr
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${BASE_PATH}/jellyseerr/config:/app/config
+      - ${MEDIA_SHARE}:/data 
+    networks:
+      - proxy
+      - starr
+    ports:
+      - 5055:5055
+    restart: unless-stopped
+    
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    network_mode: "service:gluetun"
+    environment:
+      - LOG_LEVEL=info
+      - LOG_HTML=false
+      - CAPTCHA_SOLVER=none
+      - TZ=${TZ}
+      - LANG=fr_FR
+      - DRIVER=nodriver
+    restart: unless-stopped
+      
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    network_mode: "service:gluetun"
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - WEBUI_PORT=8080
+      - TORRENTING_PORT=8694 
+      - UMASK=002
+    volumes:
+      - ${BASE_PATH}/qbittorent/config:/config
+      - ${MEDIA_SHARE}:/data
+    restart: unless-stopped
+    
+  tdarr:
+    container_name: tdarr
+    image: ghcr.io/haveagitgat/tdarr:latest
+    restart: unless-stopped
+    ports:
+      - 8265:8265 
+      - 8266:8266 
+    environment:
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - UMASK_SET=002
+      - nodeName=ServerNode
+      - serverIP=0.0.0.0
+      - serverPort=8266
+      - webUIPort=8265
+      - internalNode=true
+      - inContainer=true
+      - ffmpegVersion=6
+    volumes:
+      - ${BASE_PATH}/tdarr/server:/app/server
+      - ${BASE_PATH}/tdarr/configs:/app/configs
+      - ${BASE_PATH}/tdarr/logs:/app/logs
+      - ${MEDIA_SHARE}:/data
+      - ${TRANSCODE_PATH:-/transcode_cache}:/temp
+    devices:
+     - /dev/dri:/dev/dri
+    networks:
+      - proxy
+      
+  cross-seed:
+    image: ghcr.io/cross-seed/cross-seed:latest
+    container_name: cross-seed
+    network_mode: "service:gluetun"
+    user: ${PUID}:${PGID}
+    restart: unless-stopped
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+    volumes:
+      - ${BASE_PATH}/cross-seed/config:/config 
+      - ${BASE_PATH}/qbittorent/config/qBittorrent/BT_backup:/torrents:ro 
+      - ${MEDIA_SHARE}/torrents/cross-seed:/data/cross-seeds
+      - ${MEDIA_SHARE}/cross-seed/current-cross-seeds:/data/cross-seeds 
+    command: daemon 
+    
+  wizarr:
+    container_name: wizarr
+    image: ghcr.io/wizarrrr/wizarr:latest
+    restart: unless-stopped
+    ports:
+      - 5690:5690
+    volumes:
+      - ${BASE_PATH}/wizarr/data/database:/data/database
+    networks:
+      - proxy
+      - starr
+    environment:
+      - APP_URL=${WIZARR_URL}
+      - DISABLE_BUILTIN_AUTH=false 
+      - TZ=${TZ} 
+       
+  dozzle:
+    container_name: dozzle
+    image: amir20/dozzle:latest
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - 9999:8080
+    
+  unpackerr:
+    image: ghcr.io/hotio/unpackerr:latest
+    container_name: unpackerr
+    volumes:
+      - ${MEDIA_SHARE}:/data
+      - ${BASE_PATH}/unpackerr/config:/config
+    restart: unless-stopped
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - UN_START_DELAY=1m
+      - UMASK=002
+      - TZ=${TZ}
+      # tv-Sonarr Config
+      - UN_SONARR_0_URL=${TV_SONARR_URL}
+      - UN_SONARR_0_API_KEY=${TV_SONARR_KEY}
+      - UN_SONARR_0_PATHS_0=/${BASE_PATH}/downloads/shows
+      - UN_SONARR_0_TIMEOUT=10s
+      # anime-Sonarr Config
+      - UN_SONARR_1_URL=${ANIME_SONARR_URL}
+      - UN_SONARR_1_API_KEY=${ANIME_SONARR_KEY}
+      - UN_SONARR_1_PATHS_0=/${BASE_PATH}/downloads/anime
+      - UN_SONARR_1_TIMEOUT=10s
+      # Radarr Config
+      - UN_RADARR_0_URL=${RADARR_URL}
+      - UN_RADARR_0_API_KEY=${RADARR_KEY}
+      - UN_RADARR_0_PATHS_0=/${BASE_PATH}/downloads/movies
+      - UN_RADARR_0_TIMEOUT=10s
+    networks:
+      - starr
+
+  cabernet:
+    image: ghcr.io/cabernetwork/cabernet:latest
+    container_name: cabernet
+    restart: unless-stopped
+    volumes:
+      - ${BASE_PATH}/cabernet/extensions:/app/plugins_ext
+      - ${BASE_PATH}/cabernet/data:/app/data
+    ports:
+      - 5004:5004/tcp
+      - 6077:6077/tcp
+    environment:
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+    networks:
+      - proxy
+      
+  gluetun:
+    image: qmcgaw/gluetun:latest
+    container_name: gluetun
+    cap_add:
+      - NET_ADMIN
+    restart: unless-stopped
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    volumes:
+      - {BASE_PATH}/gluetun:/gluetun
+    environment:
+      - VPN_SERVICE_PROVIDER=custom
+      - VPN_TYPE=wireguard
+      - VPN_ENDPOINT_IP=${VPN_P2P_ENDPOINT_IP}
+      - VPN_ENDPOINT_PORT=${VPN_P2P_ENDPOINT_PORT}
+      - WIREGUARD_PUBLIC_KEY=${WIREGUARD_PUB_KEY}
+      - WIREGUARD_PRIVATE_KEY=${WIREGUARD_PRIV_KEY}
+      - WIREGUARD_ADDRESSES=${WIREGUARD_ADD}
+      - SERVER_CITIES=${VPN_SERVER_CITIES}
+      - VPN_PORT_FORWARDING= on
+      - VPN_PORT_FORWARDING_PROVIDER=${VPN_P2P_PORTFORWARDING_PROVIDER}
+    ports:
+      - 2468:2468/tcp # cross-seed
+      - 8080:8080/tcp # qBit
+      - 8694:8694/tcp # qBit
+      - 8191:8191/tcp # flaresolverr
+      - 9696:9696/tcp # prowlarr
+      - 7474:7474 # autobrr
+    networks:
+      - starr
+      - proxy
+      - gluetun_network
+
+  homarr:
+    container_name: homarr
+    image: ghcr.io/ajnart/homarr:latest
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock 
+      - ${BASE_PATH}/homarr/configs:/app/data/configs
+      - ${BASE_PATH}/homarr/icons:/app/public/icons
+      - ${BASE_PATH}/homarr/data:/data
+    ports:
+      - 7575:7575
+    networks:
+      - proxy
+
+  decluttarr:
+    image: ghcr.io/manimatter/decluttarr:v2
+    container_name: decluttarr
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+      PUID: ${PUID}
+      PGID: ${PGID}
+      ## General
+      SSL_VERIFICATION: False
+      LOG_LEVEL: INFO
+      ## Features 
+      REMOVE_TIMER: 10
+      REMOVE_FAILED: True
+      REMOVE_FAILED_IMPORTS: True
+      REMOVE_METADATA_MISSING: True
+      REMOVE_MISSING_FILES: True
+      REMOVE_ORPHANS: True
+      REMOVE_SLOW: True
+      REMOVE_STALLED: True
+      REMOVE_UNMONITORED: True
+      RUN_PERIODIC_RESCANS: '
+        {
+          "SONARR": {"MISSING": true, "CUTOFF_UNMET": true, "MAX_CONCURRENT_SCANS": 3, "MIN_DAYS_BEFORE_RESCAN": 7},
+          "RADARR": {"MISSING": true, "CUTOFF_UNMET": true, "MAX_CONCURRENT_SCANS": 3, "MIN_DAYS_BEFORE_RESCAN": 7}
+        }'
+      # Feature Settings
+      PERMITTED_ATTEMPTS: 3
+      NO_STALLED_REMOVAL_QBIT_TAG: Don't Kill
+      MIN_DOWNLOAD_SPEED: 100     
+      FAILED_IMPORT_MESSAGE_PATTERNS: '
+        [
+          "Not a Custom Format upgrade for existing", 
+          "Not an upgrade for existing"
+        ]'
+      ## Radarr
+      RADARR: >
+        - base_url: "$RADARR_URL"
+          api_key: "$RADARR_KEY"
+      ## Sonarr
+      SONARR: >
+        - base_url: "$TV_SONARR_URL"
+          api_key: "$TV_SONARR_KEY"
+        - base_url: "$ANIME_SONARR_URL"
+          api_key: "$ANIME_SONARR_KEY"
+      ## qBitorrent
+      QBITTORRENT: >
+        - base_url: "$QBIT_URL"
+          username: "$QBIT_USER"
+          password: "$QBIT_PASS"
+          name: "qBittorrent"
+    networks:
+      - starr
+      - proxy
+
+  jellystat-db:
+    image: postgres:15.2
+    container_name: jellystat-db
+    environment:
+      POSTGRES_DB: 'jfstat'
+      POSTGRES_USER: ${JELLYSTATDB_USER:-postgres}
+      POSTGRES_PASSWORD: ${JELLYSTATDB_PASS:-password}
+    volumes:
+      - ${BASE_PATH}/jellystat/postgres-data:/var/lib/postgresql/data 
+    restart: unless-stopped
+    networks:
+      - jellystat
+
+  jellystat:
+    image: cyfershepard/jellystat:latest
+    container_name: jellystat
+    environment:
+      POSTGRES_USER: ${JELLYSTATDB_USER:-postgres}
+      POSTGRES_PASSWORD: ${JELLYSTATDB_PASS:-password}
+      POSTGRES_IP: jellystat-db
+      POSTGRES_PORT: 5432
+      JWT_SECRET: ${JWT_SECRET:-'my-secret-jwt-key'}
+    ports:
+      - 3000:3000
+    volumes:
+      - ${BASE_PATH}/jellystat/postgres-backup:/app/backend/backup-data 
+    depends_on:
+      - jellystat-db
+    restart: unless-stopped
+    networks:
+      - jellystat
+      - proxy
+
+  recyclarr:
+    image: ghcr.io/recyclarr/recyclarr
+    container_name: recyclarr
+    user: ${PUID}:${GUID}
+    volumes:
+      - ${BASE_PATH}/recyclarr/config:/config
+    environment:
+      - TZ=${TZ}
+    networks:
+      - starr
+      - proxy
+
+  membarr:
+    container_name: membarr
+    image: yoruio/membarr:latest
+    restart: unless-stopped
+    environment:
+      - token=${MEMBARR_TOKEN}
+    volumes:
+      - ${BASE_PATH}/membarr/config:/app/app/config
+    networks:
+      - proxy
+
+  suggestarr:
+    image: ciuse99/suggestarr:latest
+    container_name: suggestarr
+    restart: always
+    ports:
+      - 5000:5000
+    volumes:
+      - ${BASE_PATH}/suggestarr/config_files:/app/config/config_files
+    environment:
+      - LOG_LEVEL=info
+      - SUGGESTARR_PORT=5000
+    networks:
+      - proxy
+
+  autopulse:
+    image: ghcr.io/dan-online/autopulse
+    container_name: autopulse
+    restart: always
+    depends_on:
+      postgres:
+         condition: service_healthy
+    ports:
+      - 2875:2875
+    networks:
+      - autopulse
+      - proxy
+    volumes:
+      - ${BASE_PATH}/autopulse/config.yaml:/app/config.yaml
+    environment:
+      AUTOPULSE__APP__DATABASE_URL: postgres://$AUTOPULSE_DB_USER:$AUTOPULSE_DB_PWD@postgres/autopulse
+      PUID: $PUID
+      PGID: $PGID
+      TZ: $TZ
+
+  autopulse-ui:
+    image: danonline/autopulse:ui
+    container_name: autopulse-ui
+    restart: always
+    ports:
+      - 2880:2880
+    environment:
+    ORIGIN: $AUTOPULSE_URL 
+    networks:
+      - autopulse
+      - proxy
+
+  autopulse-db:
+    image: postgres:alpine
+    container_name: autopulse-db
+    restart: always
+    networks:
+      - autopulse
+      - proxy
+    environment:
+      POSTGRES_USER: $AUTOPULSE_DB_USER
+      POSTGRES_PASSWORD: $AUTOPULSE_DB_PWD
+      POSTGRES_DB: autopulse
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - ${BASE_PATH}/autopulse/db:/var/lib/postgresql/data
+
+  maintainerr:
+    image: ghcr.io/jorenn92/maintainerr:latest 
+    container_name: maintainerr
+    user: $PUID:$PGID
+    volumes:
+      - ${BASE_PATH}/maintainerr/data:/opt/data
+    environment:
+      - TZ=${TZ}
+    ports:
+      - 6246:6246
+    restart: unless-stopped
+    networks:
+      - proxy
+      - starr
+      
+  fladder:
+    image: ghcr.io/donutware/fladder:latest
+    ports:
+      - 80:80
+    environment:
+      - BASE_URL=${JELLYFIN_URL} 
+    networks:
+      - proxy
+
+  huntarr:
+    image: ghcr.io/plexguide/huntarr:latest
+    container_name: huntarr
+    restart: always
+    ports:
+      - 9705:9705
+    volumes:
+      - ${BASE_PATH}/huntarr/config:/config
+    environment:
+      - TZ=${TZ}
+    networks:
+      - proxy
+      - starr
+    
+  cleanuperr:
+    image: ghcr.io/flmorg/cleanuperr:latest
+    restart: unless-stopped
+    volumes:
+      - ${BASE_PATH}/cleanuperr/logs:/var/logs
+      - ${BASE_PATH}/cleanuperr/ignored.txt:/ignored.txt
+      - ${MEDIA_SHARE}:/data
+    environment:
+      - TZ=${TZ}
+      - DRY_RUN=false
+      - HTTP_MAX_RETRIES=0
+      - HTTP_TIMEOUT=100
+      - HTTP_VALIDATE_CERT=Enabled
+      
+      - LOGGING__LOGLEVEL=Information
+      - LOGGING__FILE__ENABLED=false
+      - LOGGING__FILE__PATH=/var/logs/
+      - LOGGING__ENHANCED=true
+      
+      - SEARCH_ENABLED=true
+      - SEARCH_DELAY=30
+      
+      - TRIGGERS__QUEUECLEANER=0 0/5 * * * ?
+      - QUEUECLEANER__ENABLED=true
+      - QUEUECLEANER__IGNORED_DOWNLOADS_PATH=/ignored.txt
+      - QUEUECLEANER__RUNSEQUENTIALLY=true
+      
+      - QUEUECLEANER__IMPORT_FAILED_MAX_STRIKES=5
+      - QUEUECLEANER__IMPORT_FAILED_IGNORE_PRIVATE=false
+      - QUEUECLEANER__IMPORT_FAILED_DELETE_PRIVATE=false
+      - QUEUECLEANER__IMPORT_FAILED_IGNORE_PATTERNS__0=title mismatch
+      - QUEUECLEANER__IMPORT_FAILED_IGNORE_PATTERNS__1=manual import required
+      
+      - QUEUECLEANER__STALLED_MAX_STRIKES=5
+      - QUEUECLEANER__STALLED_RESET_STRIKES_ON_PROGRESS=true
+      - QUEUECLEANER__STALLED_IGNORE_PRIVATE=false
+      - QUEUECLEANER__STALLED_DELETE_PRIVATE=false
+      - QUEUECLEANER__DOWNLOADING_METADATA_MAX_STRIKES=5
+      
+      - QUEUECLEANER__SLOW_MAX_STRIKES=5
+      - QUEUECLEANER__SLOW_RESET_STRIKES_ON_PROGRESS=true
+      - QUEUECLEANER__SLOW_IGNORE_PRIVATE=false
+      - QUEUECLEANER__SLOW_DELETE_PRIVATE=false
+      - QUEUECLEANER__SLOW_MIN_SPEED=1MB
+      - QUEUECLEANER__SLOW_MAX_TIME=20
+      - QUEUECLEANER__SLOW_IGNORE_ABOVE_SIZE=60GB
+      
+      - TRIGGERS__CONTENTBLOCKER=0 0/5 * * * ?
+      - CONTENTBLOCKER__ENABLED=true
+      - CONTENTBLOCKER__IGNORED_DOWNLOADS_PATH=/ignored.txt
+      - CONTENTBLOCKER__IGNORE_PRIVATE=false
+      - CONTENTBLOCKER__DELETE_PRIVATE=false
+      
+      - TRIGGERS__DOWNLOADCLEANER=0 0 * * * ?
+      - DOWNLOADCLEANER__ENABLED=true
+      - DOWNLOADCLEANER__IGNORED_DOWNLOADS_PATH=/ignored.txt
+      - DOWNLOADCLEANER__DELETE_PRIVATE=false
+      
+      - DOWNLOADCLEANER__CATEGORIES__0__NAME=tv-sonarr
+      - DOWNLOADCLEANER__CATEGORIES__0__MAX_RATIO=${CLEANUPERR_MAX_RATIO}
+      - DOWNLOADCLEANER__CATEGORIES__0__MIN_SEED_TIME=${CLEANUPERR_MIN_SEED}
+      - DOWNLOADCLEANER__CATEGORIES__0__MAX_SEED_TIME=${CLEANUPERR_MAX_SEED}
+      - DOWNLOADCLEANER__CATEGORIES__1__NAME=radarr
+      - DOWNLOADCLEANER__CATEGORIES__1__MAX_RATIO=${CLEANUPERR_MAX_RATIO}
+      - DOWNLOADCLEANER__CATEGORIES__1__MIN_SEED_TIME=${CLEANUPERR_MIN_SEED}
+      - DOWNLOADCLEANER__CATEGORIES__1__MAX_SEED_TIME=${CLEANUPERR_MAX_SEED}
+      - DOWNLOADCLEANER__CATEGORIES__2__NAME=anime-sonarr
+      - DOWNLOADCLEANER__CATEGORIES__2__MAX_RATIO=${CLEANUPERR_MAX_RATIO}
+      - DOWNLOADCLEANER__CATEGORIES__2__MIN_SEED_TIME=${CLEANUPERR_MIN_SEED}
+      - DOWNLOADCLEANER__CATEGORIES__2__MAX_SEED_TIME=${CLEANUPERR_MAX_SEED}
+      - DOWNLOADCLEANER__CATEGORIES__3__NAME=cleanuperr-unlinked
+      - DOWNLOADCLEANER__CATEGORIES__3__MAX_RATIO=${CLEANUPERR_MAX_RATIO}
+      - DOWNLOADCLEANER__CATEGORIES__3__MIN_SEED_TIME=${CLEANUPERR_MIN_SEED}
+      - DOWNLOADCLEANER__CATEGORIES__3__MAX_SEED_TIME=${CLEANUPERR_MAX_SEED}
+      
+      - DOWNLOADCLEANER__UNLINKED_TARGET_CATEGORY=cleanuperr-unlinked
+      - DOWNLOADCLEANER__UNLINKED_USE_TAG=false
+      - DOWNLOADCLEANER__UNLINKED_IGNORED_ROOT_DIR=/data/downloads
+      - DOWNLOADCLEANER__UNLINKED_CATEGORIES__0=tv-sonarr
+      - DOWNLOADCLEANER__UNLINKED_CATEGORIES__1=radarr
+      - DOWNLOADCLEANER__UNLINKED_CATEGORIES__3=anime-sonarr
+               
+      - DOWNLOAD_CLIENT=qBittorrent
+      - QBITTORRENT__URL=${QBIT_URL}
+      - QBITTORRENT__URL_BASE=myCustomPath
+      - QBITTORRENT__USERNAME=${QBIT_USER}
+      - QBITTORRENT__PASSWORD=${QBIT_PASS}
+      
+      - SONARR__ENABLED=true
+      - SONARR__IMPORT_FAILED_MAX_STRIKES=-1
+      - SONARR__SEARCHTYPE=Episode
+      - SONARR__BLOCK__TYPE=blacklist
+      - SONARR__BLOCK__PATH=https://example.com/path/to/file.txt
+      - SONARR__INSTANCES__0__URL=http://localhost:8989
+      - SONARR__INSTANCES__0__APIKEY=sonarrSecret1
+      - SONARR__INSTANCES__1__URL=http://localhost:8990
+      - SONARR__INSTANCES__1__APIKEY=sonarrSecret2
+      
+      - RADARR__ENABLED=true
+      - RADARR__IMPORT_FAILED_MAX_STRIKES=-1
+      - RADARR__BLOCK__TYPE=blacklist
+      - RADARR__BLOCK__PATH=https://example.com/path/to/file.txt
+      - RADARR__INSTANCES__0__URL=http://localhost:7878
+      - RADARR__INSTANCES__0__APIKEY=radarrSecret1
+      - RADARR__INSTANCES__1__URL=http://localhost:7879
+      - RADARR__INSTANCES__1__APIKEY=radarrSecret2
+
+  configarr:
+    image: ghcr.io/raydak-labs/configarr:latest
+    container_name: configarr
+    environment:
+      - TZ=Etc/UTC
+    volumes:
+      - ${BASE_PATH}/configarr/config:/app/config 
+      - ${BASE_PATH}/configarr/dockerrepos:/app/repos 
+      - ${BASE_PATH}/configarr/custom/cfs:/app/cfs 
+      - ${BASE_PATH}/configarr/custom/templates:/app/templates 
+    restart: "no"
+
+  gluetun-qbittorrent-port-manager:
+    image: snoringdragon/gluetun-qbittorrent-port-manager:latest
+    restart: unless-stopped
+    volumes:
+      - {BASE_PATH}/gluetun:/tmp/gluetun 
+    network_mode: "service:gluetun"
+    environment:
+    QBITTORRENT_SERVER: localhost 
+    QBITTORRENT_PORT: 8080
+    QBITTORRENT_USER: ${QBIT_USER}
+    QBITTORRENT_PASS: ${QBIT_PASS}
+    PORT_FORWARDED: /tmp/gluetun/forwarded_port
+    HTTP_S: http
