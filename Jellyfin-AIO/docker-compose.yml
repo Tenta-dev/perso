@@ -519,15 +519,6 @@ services:
     networks:
       - proxy
       - starr
-      
-  fladder:
-    image: ghcr.io/donutware/fladder:latest
-    ports:
-      - 80:80
-    environment:
-      - BASE_URL=${JELLYFIN_URL} 
-    networks:
-      - proxy
 
   huntarr:
     image: ghcr.io/plexguide/huntarr:latest
