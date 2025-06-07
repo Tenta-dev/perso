@@ -1,167 +1,12 @@
-version: "3.0"
 
-networks:
-  proxy:
-    external: true
-  jellyfin_default:
-    external: true
-  starr:
-    external: true
-  jellystat:
-    external: true
-  autopulse:
-    external: true
-  gluetun_network:
-    external: true
+    
+
+
+
+    
+
       
-services:
-  jellyfin:
-    image: ghcr.io/linuxserver/jellyfin:latest
-    container_name: jellyfin
-    environment:
-      - JELLYFIN_PublishedServerUrl=${JELLYFIN_URL}
-      - PUID=${PUID}
-      - PGID=${PGID}
-    ports:
-      - 8096:8096
-      - 8920:8920
-    devices:
-     - /dev/dri:/dev/dri
-    volumes:
-      - ${BASE_PATH}/jellyfin/config:/config
-      - ${MEDIA_SHARE}/media:/media
-      - ${BASE_PATH}/swag/config/keys/letsencrypt:/certificates
-    restart: unless-stopped
-    networks:
-      - proxy
-      - starr
-    
-  radarr:
-    image: lscr.io/linuxserver/radarr:latest
-    container_name: radarr
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
-    volumes:
-      - ${BASE_PATH}/radarr/config:/config
-      - ${MEDIA_SHARE}:/data 
-    ports:
-      - 7878:7878
-    networks:
-      proxy:
-      starr:
-      gluetun_network:
-        ipv4_address: ${RADARR_IPV4}
-    restart: unless-stopped
-    
-  tv_sonarr:
-    image: lscr.io/linuxserver/sonarr:latest
-    container_name: tv_sonarr
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
-    volumes:
-      - ${BASE_PATH}/tv_sonarr/config:/config
-      - ${MEDIA_SHARE}:/data 
-    ports:
-      - 8989:8989
-    networks:
-      proxy:
-      starr:
-      gluetun_network:
-        ipv4_address: ${TV_SONARR_IPV4}
-    restart: unless-stopped
 
-  anime_sonarr:
-    image: lscr.io/linuxserver/sonarr:latest
-    container_name: anime_sonarr
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
-    volumes:
-      - ${BASE_PATH}/anime_sonarr/config:/config
-      - ${MEDIA_SHARE}:/data
-    ports:
-      - 8990:8989
-    networks:
-      proxy:
-      starr:
-      gluetun_network:
-        ipv4_address: ${ANIME_SONARR_IPV4}
-    restart: unless-stopped
-    
-  prowlarr:
-    image: lscr.io/linuxserver/prowlarr:latest
-    container_name: prowlarr
-    network_mode: "service:gluetun"
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
-    volumes:
-      - ${BASE_PATH}/prowlarr/config:/config
-    restart: unless-stopped
-    
-  autobrr:
-    container_name: autobrr
-    image: ghcr.io/autobrr/autobrr:latest
-    restart: unless-stopped
-    network_mode: "service:gluetun"
-    environment:
-      - TZ=${TZ}
-      - PUID=${PUID}
-      - PGID=${PGID}
-    volumes:
-      - ${BASE_PATH}/autobrr/config:/config
-
-  jellyseerr:
-    image: fallenbagel/jellyseerr:latest
-    container_name: jellyseerr
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
-    volumes:
-      - ${BASE_PATH}/jellyseerr/config:/app/config
-      - ${MEDIA_SHARE}:/data 
-    networks:
-      - proxy
-      - starr
-    ports:
-      - 5055:5055
-    restart: unless-stopped
-    
-  flaresolverr:
-    image: ghcr.io/flaresolverr/flaresolverr:latest
-    container_name: flaresolverr
-    network_mode: "service:gluetun"
-    environment:
-      - LOG_LEVEL=info
-      - LOG_HTML=false
-      - CAPTCHA_SOLVER=none
-      - TZ=${TZ}
-      - LANG=fr_FR
-      - DRIVER=nodriver
-    restart: unless-stopped
-      
-  qbittorrent:
-    image: lscr.io/linuxserver/qbittorrent:latest
-    container_name: qbittorrent
-    network_mode: "service:gluetun"
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
-      - WEBUI_PORT=8080
-      - TORRENTING_PORT=8694 
-      - UMASK=002
-    volumes:
-      - ${BASE_PATH}/qbittorent/config:/config
-      - ${MEDIA_SHARE}:/data
-    restart: unless-stopped
     
   tdarr:
     container_name: tdarr
@@ -209,30 +54,9 @@ services:
       - ${MEDIA_SHARE}/cross-seed/current-cross-seeds:/data/cross-seeds 
     command: daemon 
     
-  wizarr:
-    container_name: wizarr
-    image: ghcr.io/wizarrrr/wizarr:latest
-    restart: unless-stopped
-    ports:
-      - 5690:5690
-    volumes:
-      - ${BASE_PATH}/wizarr/data/database:/data/database
-    networks:
-      - proxy
-      - starr
-    environment:
-      - APP_URL=${WIZARR_URL}
-      - DISABLE_BUILTIN_AUTH=false 
-      - TZ=${TZ} 
+
        
-  dozzle:
-    container_name: dozzle
-    image: amir20/dozzle:latest
-    restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    ports:
-      - 9999:8080
+
     
   unpackerr:
     image: ghcr.io/hotio/unpackerr:latest
@@ -281,55 +105,8 @@ services:
       - PGID=${PGID}
     networks:
       - proxy
-      
-  gluetun:
-    image: qmcgaw/gluetun:latest
-    container_name: gluetun
-    cap_add:
-      - NET_ADMIN
-    restart: unless-stopped
-    devices:
-      - /dev/net/tun:/dev/net/tun
-    volumes:
-      - {BASE_PATH}/gluetun:/gluetun
-    environment:
-      - TZ={TZ}
-      - VPN_SERVICE_PROVIDER=custom
-      - VPN_TYPE=wireguard
-      - WIREGUARD_PUBLIC_KEY=${WIREGUARD_PUB_KEY} # "PublicKey" under [Peer] in WG Config
-      - WIREGUARD_PRIVATE_KEY=${WIREGUARD_PRIV_KEY} # "PrivateKey" under [Interface] in WG Config - only shown on config creation
-      - WIREGUARD_ADDRESSES=${WIREGUARD_ADD} # "Address" under [Interface] in WG Config
-      - VPN_ENDPOINT_IP=${VPN_P2P_ENDPOINT_IP} # "Endpoint" under [Peer] in WG Config
-      - VPN_ENDPOINT_PORT=${VPN_P2P_ENDPOINT_PORT:-51820} # should be the default 51820 but can confirm by seeing the port after IP in "Endpoint"
-      - VPN_DNS_ADDRESS=${VPN_P2P_DNS_ADD} # "DNS" under [Interface] in WG Config
-      - VPN_PORT_FORWARDING= on
-      - VPN_PORT_FORWARDING_PROVIDER=${VPN_P2P_PORTFORWARDING_PROVIDER}
-      - UPDATER_PERIOD=24h
-    ports:
-      - 2468:2468/tcp # cross-seed
-      - 8080:8080/tcp # qBit
-      - 8694:8694/tcp # qBit
-      - 8191:8191/tcp # flaresolverr
-      - 9696:9696/tcp # prowlarr
-      - 7474:7474 # autobrr
-    networks:
-      - starr
-      - proxy
-      - gluetun_network
 
-  homarr:
-    container_name: homarr
-    image: ghcr.io/ajnart/homarr:latest
-    restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock 
-      - ${BASE_PATH}/homarr/configs:/app/data/configs
-      - ${BASE_PATH}/homarr/icons:/app/public/icons
-      - ${BASE_PATH}/homarr/data:/data
-    ports:
-      - 7575:7575
-    networks:
-      - proxy
+
 
   decluttarr:
     image: ghcr.io/manimatter/decluttarr:v2
@@ -655,24 +432,4 @@ services:
       - ${BASE_PATH}/configarr/custom/templates:/app/templates 
     restart: "no"
 
-  gluetun-qbittorrent-port-manager:
-    image: snoringdragon/gluetun-qbittorrent-port-manager:latest
-    restart: unless-stopped
-    volumes:
-      - {BASE_PATH}/gluetun:/tmp/gluetun 
-    network_mode: "service:gluetun"
-    environment:
-    QBITTORRENT_SERVER: localhost 
-    QBITTORRENT_PORT: 8080
-    QBITTORRENT_USER: ${QBIT_USER}
-    QBITTORRENT_PASS: ${QBIT_PASS}
-    PORT_FORWARDED: /tmp/gluetun/forwarded_port
-    HTTP_S: http
 
-  watchtower:
-    image: containrrr/watchtower
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      - TZ = ${TZ}
-    command: --interval 30
