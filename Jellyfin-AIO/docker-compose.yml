@@ -293,16 +293,18 @@ services:
     volumes:
       - {BASE_PATH}/gluetun:/gluetun
     environment:
+      - TZ={TZ}
       - VPN_SERVICE_PROVIDER=custom
       - VPN_TYPE=wireguard
-      - VPN_ENDPOINT_IP=${VPN_P2P_ENDPOINT_IP}
-      - VPN_ENDPOINT_PORT=${VPN_P2P_ENDPOINT_PORT}
-      - WIREGUARD_PUBLIC_KEY=${WIREGUARD_PUB_KEY}
-      - WIREGUARD_PRIVATE_KEY=${WIREGUARD_PRIV_KEY}
-      - WIREGUARD_ADDRESSES=${WIREGUARD_ADD}
-      - SERVER_CITIES=${VPN_SERVER_CITIES}
+      - WIREGUARD_PUBLIC_KEY=${WIREGUARD_PUB_KEY} # "PublicKey" under [Peer] in WG Config
+      - WIREGUARD_PRIVATE_KEY=${WIREGUARD_PRIV_KEY} # "PrivateKey" under [Interface] in WG Config - only shown on config creation
+      - WIREGUARD_ADDRESSES=${WIREGUARD_ADD} # "Address" under [Interface] in WG Config
+      - VPN_ENDPOINT_IP=${VPN_P2P_ENDPOINT_IP} # "Endpoint" under [Peer] in WG Config
+      - VPN_ENDPOINT_PORT=${VPN_P2P_ENDPOINT_PORT:-51820} # should be the default 51820 but can confirm by seeing the port after IP in "Endpoint"
+      - VPN_DNS_ADDRESS=${VPN_P2P_DNS_ADD} # "DNS" under [Interface] in WG Config
       - VPN_PORT_FORWARDING= on
       - VPN_PORT_FORWARDING_PROVIDER=${VPN_P2P_PORTFORWARDING_PROVIDER}
+      - UPDATER_PERIOD=24h
     ports:
       - 2468:2468/tcp # cross-seed
       - 8080:8080/tcp # qBit
