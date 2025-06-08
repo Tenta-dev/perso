@@ -1,13 +1,3 @@
-
-    
-
-
-
-    
-
-      
-
-    
   tdarr:
     container_name: tdarr
     image: ghcr.io/haveagitgat/tdarr:latest
@@ -37,26 +27,6 @@
      - /dev/dri:/dev/dri
     networks:
       - proxy
-      
-  cross-seed:
-    image: ghcr.io/cross-seed/cross-seed:latest
-    container_name: cross-seed
-    network_mode: "service:gluetun"
-    user: ${PUID}:${PGID}
-    restart: unless-stopped
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-    volumes:
-      - ${BASE_PATH}/cross-seed/config:/config 
-      - ${BASE_PATH}/qbittorent/config/qBittorrent/BT_backup:/torrents:ro 
-      - ${MEDIA_SHARE}/torrents/cross-seed:/data/cross-seeds
-      - ${MEDIA_SHARE}/cross-seed/current-cross-seeds:/data/cross-seeds 
-    command: daemon 
-    
-
-       
-
     
   unpackerr:
     image: ghcr.io/hotio/unpackerr:latest
@@ -105,8 +75,6 @@
       - PGID=${PGID}
     networks:
       - proxy
-
-
 
   decluttarr:
     image: ghcr.io/manimatter/decluttarr:v2
@@ -163,127 +131,6 @@
       - starr
       - proxy
 
-  jellystat-db:
-    image: postgres:15.2
-    container_name: jellystat-db
-    environment:
-      POSTGRES_DB: 'jfstat'
-      POSTGRES_USER: ${JELLYSTATDB_USER:-postgres}
-      POSTGRES_PASSWORD: ${JELLYSTATDB_PASS:-password}
-    volumes:
-      - ${BASE_PATH}/jellystat/postgres-data:/var/lib/postgresql/data 
-    restart: unless-stopped
-    networks:
-      - jellystat
-
-  jellystat:
-    image: cyfershepard/jellystat:latest
-    container_name: jellystat
-    environment:
-      POSTGRES_USER: ${JELLYSTATDB_USER:-postgres}
-      POSTGRES_PASSWORD: ${JELLYSTATDB_PASS:-password}
-      POSTGRES_IP: jellystat-db
-      POSTGRES_PORT: 5432
-      JWT_SECRET: ${JWT_SECRET:-'my-secret-jwt-key'}
-    ports:
-      - 3000:3000
-    volumes:
-      - ${BASE_PATH}/jellystat/postgres-backup:/app/backend/backup-data 
-    depends_on:
-      - jellystat-db
-    restart: unless-stopped
-    networks:
-      - jellystat
-      - proxy
-
-  recyclarr:
-    image: ghcr.io/recyclarr/recyclarr
-    container_name: recyclarr
-    user: ${PUID}:${GUID}
-    volumes:
-      - ${BASE_PATH}/recyclarr/config:/config
-    environment:
-      - TZ=${TZ}
-    networks:
-      - starr
-      - proxy
-
-  membarr:
-    container_name: membarr
-    image: yoruio/membarr:latest
-    restart: unless-stopped
-    environment:
-      - token=${MEMBARR_TOKEN}
-    volumes:
-      - ${BASE_PATH}/membarr/config:/app/app/config
-    networks:
-      - proxy
-
-  suggestarr:
-    image: ciuse99/suggestarr:latest
-    container_name: suggestarr
-    restart: always
-    ports:
-      - 5000:5000
-    volumes:
-      - ${BASE_PATH}/suggestarr/config_files:/app/config/config_files
-    environment:
-      - LOG_LEVEL=info
-      - SUGGESTARR_PORT=5000
-    networks:
-      - proxy
-
-  autopulse:
-    image: ghcr.io/dan-online/autopulse
-    container_name: autopulse
-    restart: always
-    depends_on:
-      postgres:
-         condition: service_healthy
-    ports:
-      - 2875:2875
-    networks:
-      - autopulse
-      - proxy
-    volumes:
-      - ${BASE_PATH}/autopulse/config.yaml:/app/config.yaml
-    environment:
-      AUTOPULSE__APP__DATABASE_URL: postgres://$AUTOPULSE_DB_USER:$AUTOPULSE_DB_PWD@postgres/autopulse
-      PUID: $PUID
-      PGID: $PGID
-      TZ: $TZ
-
-  autopulse-ui:
-    image: danonline/autopulse:ui
-    container_name: autopulse-ui
-    restart: always
-    ports:
-      - 2880:2880
-    environment:
-    ORIGIN: $AUTOPULSE_URL 
-    networks:
-      - autopulse
-      - proxy
-
-  autopulse-db:
-    image: postgres:alpine
-    container_name: autopulse-db
-    restart: always
-    networks:
-      - autopulse
-      - proxy
-    environment:
-      POSTGRES_USER: $AUTOPULSE_DB_USER
-      POSTGRES_PASSWORD: $AUTOPULSE_DB_PWD
-      POSTGRES_DB: autopulse
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    volumes:
-      - ${BASE_PATH}/autopulse/db:/var/lib/postgresql/data
-
   maintainerr:
     image: ghcr.io/jorenn92/maintainerr:latest 
     container_name: maintainerr
@@ -295,20 +142,6 @@
     ports:
       - 6246:6246
     restart: unless-stopped
-    networks:
-      - proxy
-      - starr
-
-  huntarr:
-    image: ghcr.io/plexguide/huntarr:latest
-    container_name: huntarr
-    restart: always
-    ports:
-      - 9705:9705
-    volumes:
-      - ${BASE_PATH}/huntarr/config:/config
-    environment:
-      - TZ=${TZ}
     networks:
       - proxy
       - starr
@@ -419,17 +252,3 @@
       - RADARR__INSTANCES__0__APIKEY=radarrSecret1
       - RADARR__INSTANCES__1__URL=http://localhost:7879
       - RADARR__INSTANCES__1__APIKEY=radarrSecret2
-
-  configarr:
-    image: ghcr.io/raydak-labs/configarr:latest
-    container_name: configarr
-    environment:
-      - TZ=Etc/UTC
-    volumes:
-      - ${BASE_PATH}/configarr/config:/app/config 
-      - ${BASE_PATH}/configarr/dockerrepos:/app/repos 
-      - ${BASE_PATH}/configarr/custom/cfs:/app/cfs 
-      - ${BASE_PATH}/configarr/custom/templates:/app/templates 
-    restart: "no"
-
-
