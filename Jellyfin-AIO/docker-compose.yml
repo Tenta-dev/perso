@@ -13,6 +13,8 @@ networks:
     external: true
       
 services:
+  # REVERSE PROXY IS IN OTHER DOCKER COMPOSE STACK
+
   #Jellyfin - used to display the media
   #This can also be replaced by Emby/Plex
   jellyfin:
@@ -22,11 +24,14 @@ services:
       - PUID=${PUID}
       - PGID=${PGID}
       - JELLYFIN_PublishedServerUrl=${JELLYFIN_URL}
+    group_add:
+      - '993' # Change this to match your "render" host group id and remove this comment
+      - '44'
     ports:
       - 8096:8096
       - 8920:8920
     devices:
-     - /dev/dri:/dev/dri #Required for jellyfin HW transcoding / QuickSync
+     - /dev/dri/renderD128:/dev/dri/renderD128 #Required for jellyfin HW transcoding / QuickSync
     volumes:
       - ${BASE_PATH}/jellyfin/config:/config
       - ${MEDIA_SHARE}/media:/media
@@ -77,7 +82,6 @@ services:
         ipv4_address: ${SONARR_IPV4}
     restart: unless-stopped
 
-  #Gluetun - VPN
   gluetun:
     image: qmcgaw/gluetun:latest
     container_name: gluetun
@@ -270,7 +274,6 @@ services:
     networks:
       - proxy
 
-  #Decluttarr - keeps the radarr & sonarr queue free of stalled / redundant downloads
   decluttarr:
     image: ghcr.io/manimatter/decluttarr:latest
     container_name: decluttarr
@@ -335,7 +338,7 @@ services:
     restart: unless-stopped
     networks:
       - jellystat
-  #Stats for Jellyfin
+
   jellystat:
     image: cyfershepard/jellystat:latest
     container_name: jellystat
@@ -358,7 +361,6 @@ services:
       - jellystat
       - proxy
 
-  #Configarr - simplify configuration and synchronization for Sonarr and Radarr
   configarr:
     image: ghcr.io/raydak-labs/configarr:latest
     container_name: configarr
@@ -379,7 +381,7 @@ services:
       - proxy
       - starr
 
-  # Automatically updates the listening port for qbittorrent to the port forwarded
+
   gluetun-qbittorrent-port-manager:
     image: snoringdragon/gluetun-qbittorrent-port-manager:latest
     container_name: gluetun-qbittorrent-port-manager
@@ -397,8 +399,8 @@ services:
       PORT_FORWARDED: /tmp/gluetun/forwarded_port
       HTTP_S: http # Select 'http' or 'https' depending on if you use certificates.
 
-  #Huntarr - Huntarr is an automatic missing content hunter for Sonarr, Radarr
-  #Security provider with Swappar options
+
+
   huntarr:
     image: huntarr/huntarr:latest
     container_name: huntarr
@@ -414,7 +416,6 @@ services:
     networks:
       - proxy
 
-  #Cleanuperr - Cleanuperr is a tool for automating the cleanup of unwanted or blocked files in Sonarr, Radarr
   cleanuperr:
     image: ghcr.io/flmorg/cleanuperr:latest
     container_name: cleanuperr
@@ -521,8 +522,7 @@ services:
       - RADARR__INSTANCES__0__APIKEY=${RADARR_KEY}
     networks:
       - proxy
-
-  #Suggestarr - Provide suggestion for viewed content
+      
   suggestarr:
     image: ciuse99/suggestarr:latest
     container_name: suggestarr
@@ -539,8 +539,7 @@ services:
     networks:
       - proxy
       - starr
-
-  #watchtower - maintain containers up-to-date
+      
   watchtower:
     image: containrrr/watchtower
     container_name: watchtower
